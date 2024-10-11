@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a9b0acfaa2dd3a740b5fe690ea2a1943
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 256409
+  packageName: VR Keyboard - XRI Poke & Hands support
+  packageVersion: 1.2
+  assetPath: Assets/Scenes/DemoVRKeyboardUS.unity
+  uploadId: 609860
