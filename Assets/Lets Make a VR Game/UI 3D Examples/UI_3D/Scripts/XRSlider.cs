@@ -4,9 +4,6 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 namespace UnityEngine.XR.Content.Interaction
 {
-    /// <summary>
-    /// An interactable that follows the position of the interactor on a single axis
-    /// </summary>
     public class XRSlider : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable
     {
         [Serializable]
@@ -30,14 +27,16 @@ namespace UnityEngine.XR.Content.Interaction
         float m_MinPosition = -0.5f;
 
         [SerializeField]
+        [Tooltip("How smooth the slider movement should be (lower = smoother)")]
+        float m_Smoothing = 8f;
+
+        [SerializeField]
         [Tooltip("Events to trigger when the slider is moved")]
         ValueChangeEvent m_OnValueChange = new ValueChangeEvent();
 
         UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor m_Interactor;
+        Vector3 m_LastInteractorPosition;
 
-        /// <summary>
-        /// The value of the slider
-        /// </summary>
         public float value
         {
             get => m_Value;
@@ -48,9 +47,6 @@ namespace UnityEngine.XR.Content.Interaction
             }
         }
 
-        /// <summary>
-        /// Events to trigger when the slider is moved
-        /// </summary>
         public ValueChangeEvent onValueChange => m_OnValueChange;
 
         void Start()
@@ -76,12 +72,14 @@ namespace UnityEngine.XR.Content.Interaction
         void StartGrab(SelectEnterEventArgs args)
         {
             m_Interactor = args.interactorObject;
+            m_LastInteractorPosition = m_Interactor.GetAttachTransform(this).position;
             UpdateSliderPosition();
         }
 
         void EndGrab(SelectExitEventArgs args)
         {
             m_Interactor = null;
+            // No additional logic here - slider will stay where it was released
         }
 
         public override void ProcessInteractable(XRInteractionUpdateOrder.UpdatePhase updatePhase)
@@ -99,11 +97,26 @@ namespace UnityEngine.XR.Content.Interaction
 
         void UpdateSliderPosition()
         {
-            // Put anchor position into slider space
-            var localPosition = transform.InverseTransformPoint(m_Interactor.GetAttachTransform(this).position);
-            var sliderValue = Mathf.Clamp01((localPosition.z - m_MinPosition) / (m_MaxPosition - m_MinPosition));
-            SetValue(sliderValue);
-            SetSliderPosition(sliderValue);
+            if (m_Interactor == null) return;
+
+            var currentInteractorPosition = m_Interactor.GetAttachTransform(this).position;
+            var localPosition = transform.InverseTransformPoint(currentInteractorPosition);
+            var previousLocalPosition = transform.InverseTransformPoint(m_LastInteractorPosition);
+
+            // Calculate the change in position
+            float delta = localPosition.z - previousLocalPosition.z;
+            
+            // Calculate new value based on current position and movement
+            float currentValue = m_Value;
+            float range = m_MaxPosition - m_MinPosition;
+            float newValue = Mathf.Clamp01(currentValue + (delta / range));
+
+            // Smoothly update to the new value while dragging
+            float smoothValue = Mathf.Lerp(currentValue, newValue, Time.deltaTime * m_Smoothing);
+            SetValue(smoothValue);
+            SetSliderPosition(smoothValue);
+
+            m_LastInteractorPosition = currentInteractorPosition;
         }
 
         void SetSliderPosition(float value)
@@ -118,8 +131,11 @@ namespace UnityEngine.XR.Content.Interaction
 
         void SetValue(float value)
         {
-            m_Value = value;
-            m_OnValueChange.Invoke(m_Value);
+            if (Mathf.Abs(m_Value - value) > 0.001f)
+            {
+                m_Value = value;
+                m_OnValueChange.Invoke(m_Value);
+            }
         }
 
         void OnDrawGizmosSelected()
