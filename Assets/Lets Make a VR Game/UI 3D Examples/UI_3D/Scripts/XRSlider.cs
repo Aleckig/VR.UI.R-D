@@ -1,4 +1,6 @@
 using System;
+using TMPro;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
 
@@ -34,6 +36,15 @@ namespace UnityEngine.XR.Content.Interaction
         [Tooltip("Events to trigger when the slider is moved")]
         ValueChangeEvent m_OnValueChange = new ValueChangeEvent();
 
+        [Header("UI Components")]
+        [SerializeField]
+        [Tooltip("Text component to display the slider's current value")]
+        TextMeshProUGUI valueText;
+
+        [SerializeField]
+        [Tooltip("The display format for the slider value (e.g., Value: {0:F2})")]
+        string valueFormat = "Value: {0:F2}"; // "F2" for 2 decimal places
+
         UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor m_Interactor;
         Vector3 m_LastInteractorPosition;
 
@@ -53,6 +64,7 @@ namespace UnityEngine.XR.Content.Interaction
         {
             SetValue(m_Value);
             SetSliderPosition(m_Value);
+            UpdateValueDisplay(m_Value);
         }
 
         protected override void OnEnable()
@@ -60,12 +72,14 @@ namespace UnityEngine.XR.Content.Interaction
             base.OnEnable();
             selectEntered.AddListener(StartGrab);
             selectExited.AddListener(EndGrab);
+            m_OnValueChange.AddListener(UpdateValueDisplay);
         }
 
         protected override void OnDisable()
         {
             selectEntered.RemoveListener(StartGrab);
             selectExited.RemoveListener(EndGrab);
+            m_OnValueChange.RemoveListener(UpdateValueDisplay);
             base.OnDisable();
         }
 
@@ -79,19 +93,15 @@ namespace UnityEngine.XR.Content.Interaction
         void EndGrab(SelectExitEventArgs args)
         {
             m_Interactor = null;
-            // No additional logic here - slider will stay where it was released
         }
 
         public override void ProcessInteractable(XRInteractionUpdateOrder.UpdatePhase updatePhase)
         {
             base.ProcessInteractable(updatePhase);
 
-            if (updatePhase == XRInteractionUpdateOrder.UpdatePhase.Dynamic)
+            if (updatePhase == XRInteractionUpdateOrder.UpdatePhase.Dynamic && isSelected)
             {
-                if (isSelected)
-                {
-                    UpdateSliderPosition();
-                }
+                UpdateSliderPosition();
             }
         }
 
@@ -103,16 +113,11 @@ namespace UnityEngine.XR.Content.Interaction
             var localPosition = transform.InverseTransformPoint(currentInteractorPosition);
             var previousLocalPosition = transform.InverseTransformPoint(m_LastInteractorPosition);
 
-            // Calculate the change in position
             float delta = localPosition.z - previousLocalPosition.z;
-            
-            // Calculate new value based on current position and movement
-            float currentValue = m_Value;
             float range = m_MaxPosition - m_MinPosition;
-            float newValue = Mathf.Clamp01(currentValue + (delta / range));
+            float newValue = Mathf.Clamp01(m_Value + (delta / range));
 
-            // Smoothly update to the new value while dragging
-            float smoothValue = Mathf.Lerp(currentValue, newValue, Time.deltaTime * m_Smoothing);
+            float smoothValue = Mathf.Lerp(m_Value, newValue, Time.deltaTime * m_Smoothing);
             SetValue(smoothValue);
             SetSliderPosition(smoothValue);
 
@@ -121,8 +126,7 @@ namespace UnityEngine.XR.Content.Interaction
 
         void SetSliderPosition(float value)
         {
-            if (m_Handle == null)
-                return;
+            if (m_Handle == null) return;
 
             var handlePos = m_Handle.localPosition;
             handlePos.z = Mathf.Lerp(m_MinPosition, m_MaxPosition, value);
@@ -138,6 +142,15 @@ namespace UnityEngine.XR.Content.Interaction
             }
         }
 
+        private void UpdateValueDisplay(float value)
+        {
+            if (valueText != null)
+            {
+                valueText.text = string.Format(valueFormat, value);
+            }
+            Debug.Log($"Slider value: {value:F2}");
+        }
+
         void OnDrawGizmosSelected()
         {
             var sliderMinPoint = transform.TransformPoint(new Vector3(0.0f, 0.0f, m_MinPosition));
@@ -150,6 +163,7 @@ namespace UnityEngine.XR.Content.Interaction
         void OnValidate()
         {
             SetSliderPosition(m_Value);
+            UpdateValueDisplay(m_Value);
         }
     }
 }
