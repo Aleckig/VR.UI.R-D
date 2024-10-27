@@ -1,18 +1,3 @@
-/*
- * Copyright (c) 2023 Black Whale Studio. All rights reserved.
- *
- * This software is the intellectual property of Black Whale Studio. Direct use, copying, or distribution of this code in its original or only slightly modified form is strictly prohibited. Significant modifications or derivations are required for any use.
- *
- * If this code is intended to be used in a commercial setting, you must contact Black Whale Studio for explicit permission.
- *
- * For the full licensing terms and conditions, visit:
- * https://blackwhale.dev/
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT ANY WARRANTIES OR CONDITIONS.
- *
- * For questions or to join our community, please visit our Discord: https://discord.gg/55gtTryfWw
- */
-
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -64,6 +49,16 @@ namespace Keyboard
         [SerializeField] private int maxCharacters = 15;
         [SerializeField] private int minCharacters = 3;
 
+        [Header("Press Tracking")]
+        [SerializeField] private GameObject pressCounterObject;
+        [SerializeField] private TextMeshProUGUI pressCounterText; // Made serializable for direct assignment
+        [SerializeField] private string counterFormat = "Presses: {0}";
+        private int totalPresses;
+
+        [System.Serializable]
+        public class PressEvent : UnityEvent<int> { }
+        public PressEvent onPressCountChanged;
+
         private ColorBlock shiftButtonColors;
         private bool isFirstKeyPress = true;
         private bool keyHasBeenPressed;
@@ -77,36 +72,91 @@ namespace Keyboard
 
         private void Awake()
         {
+            Debug.Log("KeyboardManager Awake started");
+            
             shiftButtonColors = shiftButton.colors;
+            
+            // Initialize components
+            InitializePressCounter();
             
             CheckTextLength();
 
             speechButton.interactable = false;
             
+            // Set initial keyboard states
             numbersKeyboard.SetActive(false);
             specialCharactersKeyboard.SetActive(false);
             lettersKeyboard.SetActive(true);
 
+            // Add button listeners
             spacebarButton.onClick.AddListener(OnSpacePress);
             deleteButton.onClick.AddListener(OnDeletePress);
             switchButton.onClick.AddListener(OnSwitchPress);
             shiftButton.onClick.AddListener(OnShiftPress);
             switchNumberSpecialButton.onClick.AddListener(SwitchBetweenNumbersAndSpecialCharacters);
+            
+            // Get text components
             switchButtonText = switchButton.GetComponentInChildren<TextMeshProUGUI>();
             switchNumSpecButtonText = switchNumberSpecialButton.GetComponentInChildren<TextMeshProUGUI>();
+            
+            // Initialize colors
             keyChannel.RaiseKeyColorsChangedEvent(normalColor, highlightedColor, pressedColor, selectedColor);
             
+            // Set initial states
             switchNumberSpecialButton.gameObject.SetActive(false);
             numbersKeyboard.SetActive(false);
             specialCharactersKeyboard.SetActive(false);
 
-            if (!autoCapsAtStart) return;
-            ActivateShift();
-            UpdateShiftButtonAppearance();
+            if (autoCapsAtStart)
+            {
+                ActivateShift();
+                UpdateShiftButtonAppearance();
+            }
+
+            Debug.Log("KeyboardManager Awake completed");
+        }
+
+        private void InitializePressCounter()
+        {
+            Debug.Log("Initializing Press Counter");
+            
+            // Try to get the counter text component if not already assigned
+            if (pressCounterText == null && pressCounterObject != null)
+            {
+                // First try to get it directly from the object
+                pressCounterText = pressCounterObject.GetComponent<TextMeshProUGUI>();
+                
+                // If not found, try to find it in children
+                if (pressCounterText == null)
+                {
+                    pressCounterText = pressCounterObject.GetComponentInChildren<TextMeshProUGUI>();
+                }
+
+                if (pressCounterText == null)
+                {
+                    Debug.LogWarning("Press counter TextMeshProUGUI component not found!");
+                }
+                else
+                {
+                    Debug.Log("Press counter TextMeshProUGUI component found and assigned");
+                }
+            }
+
+            // Initialize the press event if needed
+            if (onPressCountChanged == null)
+            {
+                onPressCountChanged = new PressEvent();
+                Debug.Log("Press event initialized");
+            }
+
+            // Reset and update the counter
+            totalPresses = 0;
+            UpdatePressCounter();
         }
 
         private void OnDestroy()
         {
+            // Remove button listeners
             spacebarButton.onClick.RemoveListener(OnSpacePress);
             deleteButton.onClick.RemoveListener(OnDeletePress);
             switchButton.onClick.RemoveListener(OnSwitchPress);
@@ -114,25 +164,27 @@ namespace Keyboard
             switchNumberSpecialButton.onClick.RemoveListener(SwitchBetweenNumbersAndSpecialCharacters);
         }
 
-        private void OnEnable() => keyChannel.OnKeyPressed += KeyPress;
+        private void OnEnable()
+        {
+            keyChannel.OnKeyPressed += KeyPress;
+            Debug.Log("KeyboardManager Enabled - Key press listener added");
+        }
 
-        private void OnDisable() => keyChannel.OnKeyPressed -= KeyPress;
+        private void OnDisable()
+        {
+            keyChannel.OnKeyPressed -= KeyPress;
+            Debug.Log("KeyboardManager Disabled - Key press listener removed");
+        }
 
         private void KeyPress(string key)
         {
+            IncrementPressCounter();
+            
             keyHasBeenPressed = true;
             bool wasShiftActive = shiftActive;
             DeactivateShift();
 
-            string textToInsert;
-            if (wasShiftActive || capsLockActive)
-            {
-                textToInsert = key.ToUpper();
-            }
-            else
-            {
-                textToInsert = key.ToLower();
-            }
+            string textToInsert = (wasShiftActive || capsLockActive) ? key.ToUpper() : key.ToLower();
 
             int startPos = Mathf.Min(outputField.selectionAnchorPosition, outputField.selectionFocusPosition);
             int endPos = Mathf.Max(outputField.selectionAnchorPosition, outputField.selectionFocusPosition);
@@ -153,6 +205,8 @@ namespace Keyboard
 
         private void OnSpacePress()
         {
+            IncrementPressCounter();
+            
             int startPos = Mathf.Min(outputField.selectionAnchorPosition, outputField.selectionFocusPosition);
             int endPos = Mathf.Max(outputField.selectionAnchorPosition, outputField.selectionFocusPosition);
 
@@ -166,7 +220,10 @@ namespace Keyboard
 
         private void OnDeletePress()
         {
+            IncrementPressCounter();
+            
             if (string.IsNullOrEmpty(outputField.text)) return;
+            
             int startPos = Mathf.Min(outputField.selectionAnchorPosition, outputField.selectionFocusPosition);
             int endPos = Mathf.Max(outputField.selectionAnchorPosition, outputField.selectionFocusPosition);
 
@@ -188,25 +245,24 @@ namespace Keyboard
         {
             int currentLength = outputField.text.Length;
 
-            // Raise event to enable or disable keys based on the text length
             bool keysEnabled = currentLength < maxCharacters;
             keyChannel.RaiseKeysStateChangeEvent(keysEnabled);
 
-            // Disables or enables the enter button based on the text length
             enterButton.interactable = currentLength >= minCharacters;
-
-            // Always enable the delete button, regardless of the text length
             deleteButton.interactable = true;
             
-            // Disable shift/caps lock if maximum text length is reached
-            if (currentLength != maxCharacters) return;
-            DeactivateShift();
-            capsLockActive = false;
-            UpdateShiftButtonAppearance();
+            if (currentLength == maxCharacters)
+            {
+                DeactivateShift();
+                capsLockActive = false;
+                UpdateShiftButtonAppearance();
+            }
         }
 
         private void OnSwitchPress()
         {
+            IncrementPressCounter();
+            
             if (lettersKeyboard.activeSelf)
             {
                 lettersKeyboard.SetActive(false);
@@ -214,7 +270,6 @@ namespace Keyboard
                 specialCharactersKeyboard.SetActive(false);
                 switchNumberSpecialButton.gameObject.SetActive(true);
 
-                // Set buttons' text
                 switchButtonText.text = switchToNumbers;
                 switchNumSpecButtonText.text = specialString;
             }
@@ -225,38 +280,41 @@ namespace Keyboard
                 specialCharactersKeyboard.SetActive(false);
                 switchNumberSpecialButton.gameObject.SetActive(false);
 
-                // Set buttons' text
                 switchButtonText.text = switchToLetter;
                 switchNumSpecButtonText.text = specialString;
             }
+            
             DeactivateShift();
             onKeyboardModeChanged?.Invoke();
         }
 
-
         private void OnShiftPress()
         {
+            IncrementPressCounter();
+            
             if (capsLockActive)
             {
-                // If Caps Lock is active, deactivate it
                 capsLockActive = false;
                 shiftActive = false;
             }
-            else switch (shiftActive)
+            else
             {
-                case true when !keyHasBeenPressed && Time.time - lastShiftClickTime < shiftDoubleClickDelay:
-                    // If Shift is active, a key has not been pressed, and Shift button was double clicked, activate Caps Lock
-                    capsLockActive = true;
-                    shiftActive = false;
-                    break;
-                case true when !keyHasBeenPressed:
-                    // If Shift is active, a key has not been pressed, deactivate Shift
-                    shiftActive = false;
-                    break;
-                case false:
-                    // If Shift is not active and Shift button was clicked once, activate Shift
+                if (shiftActive && !keyHasBeenPressed)
+                {
+                    if (Time.time - lastShiftClickTime < shiftDoubleClickDelay)
+                    {
+                        capsLockActive = true;
+                        shiftActive = false;
+                    }
+                    else
+                    {
+                        shiftActive = false;
+                    }
+                }
+                else
+                {
                     shiftActive = true;
-                    break;
+                }
             }
 
             lastShiftClickTime = Time.time;
@@ -266,7 +324,10 @@ namespace Keyboard
 
         private void ActivateShift()
         {
-            if (!capsLockActive) shiftActive = true;
+            if (!capsLockActive)
+            {
+                shiftActive = true;
+            }
 
             UpdateShiftButtonAppearance();
             onKeyboardModeChanged?.Invoke();
@@ -290,16 +351,18 @@ namespace Keyboard
 
         private void SwitchBetweenNumbersAndSpecialCharacters()
         {
-            if (lettersKeyboard.activeSelf) return;
+            IncrementPressCounter();
+            
+            if (!lettersKeyboard.activeSelf)
+            {
+                bool isNumbersKeyboardActive = numbersKeyboard.activeSelf;
+                numbersKeyboard.SetActive(!isNumbersKeyboardActive);
+                specialCharactersKeyboard.SetActive(isNumbersKeyboardActive);
 
-            // Switch between numbers and special characters keyboard
-            bool isNumbersKeyboardActive = numbersKeyboard.activeSelf;
-            numbersKeyboard.SetActive(!isNumbersKeyboardActive);
-            specialCharactersKeyboard.SetActive(isNumbersKeyboardActive);
+                switchNumSpecButtonText.text = switchNumSpecButtonText.text == specialString ? numbersString : specialString;
 
-            switchNumSpecButtonText.text = switchNumSpecButtonText.text == specialString ? numbersString : specialString;
-
-            onKeyboardModeChanged?.Invoke();
+                onKeyboardModeChanged?.Invoke();
+            }
         }
 
         private void UpdateShiftButtonAppearance()
@@ -321,6 +384,52 @@ namespace Keyboard
             }
 
             shiftButton.colors = shiftButtonColors;
+        }
+
+        private void IncrementPressCounter()
+        {
+            totalPresses++;
+            Debug.Log($"Button pressed! Total presses: {totalPresses}");
+            UpdatePressCounter();
+        }
+
+        private void UpdatePressCounter()
+        {
+            if (pressCounterText != null)
+            {
+                string formattedText = string.Format(counterFormat, totalPresses);
+                pressCounterText.text = formattedText;
+                Debug.Log($"Press Counter Updated: {formattedText}");
+            }
+            else
+            {
+                Debug.LogWarning("Press counter text component is null!");
+            }
+
+            onPressCountChanged?.Invoke(totalPresses);
+        }
+
+        public int GetTotalPresses()
+        {
+            return totalPresses;
+        }
+
+        public void ResetPressCounter()
+        {
+            totalPresses = 0;
+            UpdatePressCounter();
+        }
+
+        public void SetPressCounterText(TextMeshProUGUI newCounterText)
+        {
+            pressCounterText = newCounterText;
+            UpdatePressCounter();
+        }
+
+        public void SetPressCounterObject(GameObject counterObject)
+        {
+            pressCounterObject = counterObject;
+            InitializePressCounter();
         }
     }
 }
