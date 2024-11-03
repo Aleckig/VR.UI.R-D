@@ -3,7 +3,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(ConfigurableJoint))]
-public class SliderLever : XRGrabInteractable
+public class SliderLever : UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable
 {
     [Header("Slider Settings")]
     [SerializeField] private float minX = -0.5f;
@@ -39,7 +39,7 @@ public class SliderLever : XRGrabInteractable
         rb = GetComponent<Rigidbody>();
         rb.useGravity = false;
         rb.isKinematic = false; // Important: Should not be kinematic
-        rb.drag = 10f; // Add some drag to prevent unwanted movement
+        rb.linearDamping = 10f; // Add some drag to prevent unwanted movement
         rb.constraints = RigidbodyConstraints.FreezeRotation | 
                         RigidbodyConstraints.FreezePositionY | 
                         RigidbodyConstraints.FreezePositionZ;
@@ -100,7 +100,7 @@ public class SliderLever : XRGrabInteractable
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
         base.OnSelectEntered(args);
-        rb.velocity = Vector3.zero; // Reset velocity when grabbed
+        rb.linearVelocity = Vector3.zero; // Reset velocity when grabbed
     }
 
 #if UNITY_EDITOR
