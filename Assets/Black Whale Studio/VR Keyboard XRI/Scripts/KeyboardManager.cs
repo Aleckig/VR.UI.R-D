@@ -113,7 +113,7 @@ namespace Keyboard
                 UpdateShiftButtonAppearance();
             }
 
-            Debug.Log("KeyboardManager Awake completed");
+            //Debug.Log("KeyboardManager Awake completed");
         }
 
         private void InitializePressCounter()
@@ -167,7 +167,7 @@ namespace Keyboard
         private void OnEnable()
         {
             keyChannel.OnKeyPressed += KeyPress;
-            Debug.Log("KeyboardManager Enabled - Key press listener added");
+            //Debug.Log("KeyboardManager Enabled - Key press listener added");
         }
 
         private void OnDisable()

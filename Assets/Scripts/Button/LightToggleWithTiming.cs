@@ -20,9 +20,9 @@ public class LightToggleWithTiming : MonoBehaviour
         }
 
         // Set up listeners
-        toggleA.onValueChanged.AddListener((isOn) => OnTogglePressed(toggleA, "Button Large", isOn));
-        toggleB.onValueChanged.AddListener((isOn) => OnTogglePressed(toggleB, "Button Medium", isOn));
-        toggleC.onValueChanged.AddListener((isOn) => OnTogglePressed(toggleC, "Button Small", isOn));
+        toggleA.onValueChanged.AddListener((isOn) => OnTogglePressed(toggleA, "2D Button Large", isOn));
+        toggleB.onValueChanged.AddListener((isOn) => OnTogglePressed(toggleB, "2D Button Medium", isOn));
+        toggleC.onValueChanged.AddListener((isOn) => OnTogglePressed(toggleC, "2D Button Small", isOn));
 
         Debug.Log("Toggle listeners setup complete!");
     }
