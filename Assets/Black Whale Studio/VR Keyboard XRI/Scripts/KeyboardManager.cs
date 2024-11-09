@@ -72,7 +72,7 @@ namespace Keyboard
 
         private void Awake()
         {
-            Debug.Log("KeyboardManager Awake started");
+            //Debug.Log("KeyboardManager Awake started");
             
             shiftButtonColors = shiftButton.colors;
             
@@ -118,7 +118,7 @@ namespace Keyboard
 
         private void InitializePressCounter()
         {
-            Debug.Log("Initializing Press Counter");
+            //Debug.Log("Initializing Press Counter");
             
             // Try to get the counter text component if not already assigned
             if (pressCounterText == null && pressCounterObject != null)

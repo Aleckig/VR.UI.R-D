@@ -1,17 +1,21 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 
 public class SliderValueDisplay : MonoBehaviour
 {
     [Header("UI Components")]
     [SerializeField] private Slider slider;
     [SerializeField] private TextMeshProUGUI valueText;
-    [SerializeField] private string valueFormat = "Value: {0:F2}"; // F2 means 2 decimal places
+    [SerializeField] private string valueFormat = "Value: {0:F3}"; // F3 for 3 decimal places
+
+    private Coroutine updateDelayCoroutine;
+    private float lastLoggedValue = 0f;
+    private const float delayTime = 0.5f; // Time in seconds to wait before logging
 
     private void Start()
     {
-        // Check if components are assigned
         if (slider == null)
         {
             Debug.LogError("Slider not assigned to SliderValueDisplay!");
@@ -24,16 +28,12 @@ public class SliderValueDisplay : MonoBehaviour
             return;
         }
 
-        // Add listener for slider value changes
         slider.onValueChanged.AddListener(OnSliderValueChanged);
-
-        // Initialize text with starting value
         UpdateValueDisplay(slider.value);
     }
 
     private void OnDestroy()
     {
-        // Clean up listener when object is destroyed
         if (slider != null)
         {
             slider.onValueChanged.RemoveListener(OnSliderValueChanged);
@@ -43,15 +43,28 @@ public class SliderValueDisplay : MonoBehaviour
     private void OnSliderValueChanged(float value)
     {
         UpdateValueDisplay(value);
+
+        // Restart the coroutine each time the slider value changes
+        if (updateDelayCoroutine != null)
+        {
+            StopCoroutine(updateDelayCoroutine);
+        }
+        updateDelayCoroutine = StartCoroutine(LogValueAfterDelay(value));
     }
 
     private void UpdateValueDisplay(float value)
     {
-        // Update UI Text
         valueText.text = string.Format(valueFormat, value);
-        
-        // Log to console
-        Debug.Log($"Slider value: {value:F2}");
+    }
+
+    private IEnumerator LogValueAfterDelay(float value)
+    {
+        // Wait for the specified delay time to check if the slider has stopped moving
+        yield return new WaitForSeconds(delayTime);
+
+        // Log the value if it has stopped moving
+        Debug.Log($"2D Slider value (standstill): {value:F3}");
+        lastLoggedValue = value;
     }
 
     // Public method to get current slider value

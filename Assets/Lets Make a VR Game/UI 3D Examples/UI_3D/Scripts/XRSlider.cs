@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
+using System.Collections;
 
 namespace UnityEngine.XR.Content.Interaction
 {
@@ -42,11 +43,14 @@ namespace UnityEngine.XR.Content.Interaction
         TextMeshProUGUI valueText;
 
         [SerializeField]
-        [Tooltip("The display format for the slider value (e.g., Value: {0:F2})")]
-        string valueFormat = "Value: {0:F2}"; // "F2" for 2 decimal places
+        [Tooltip("The display format for the slider value (e.g., Value: {0:F3})")]
+        string valueFormat = "Value: {0:F3}"; // "F3" for 3 decimal places
 
         UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor m_Interactor;
         Vector3 m_LastInteractorPosition;
+
+        private Coroutine logDelayCoroutine;
+        private const float delayTime = 0.5f; // Delay time to wait before logging
 
         public float value
         {
@@ -93,6 +97,13 @@ namespace UnityEngine.XR.Content.Interaction
         void EndGrab(SelectExitEventArgs args)
         {
             m_Interactor = null;
+
+            // Start a delayed log when the grab ends
+            if (logDelayCoroutine != null)
+            {
+                StopCoroutine(logDelayCoroutine);
+            }
+            logDelayCoroutine = StartCoroutine(LogValueAfterDelay(m_Value));
         }
 
         public override void ProcessInteractable(XRInteractionUpdateOrder.UpdatePhase updatePhase)
@@ -122,6 +133,13 @@ namespace UnityEngine.XR.Content.Interaction
             SetSliderPosition(smoothValue);
 
             m_LastInteractorPosition = currentInteractorPosition;
+
+            // Reset the delayed log coroutine every time the slider moves
+            if (logDelayCoroutine != null)
+            {
+                StopCoroutine(logDelayCoroutine);
+            }
+            logDelayCoroutine = StartCoroutine(LogValueAfterDelay(smoothValue));
         }
 
         void SetSliderPosition(float value)
@@ -148,7 +166,12 @@ namespace UnityEngine.XR.Content.Interaction
             {
                 valueText.text = string.Format(valueFormat, value);
             }
-            Debug.Log($"Slider value: {value:F2}");
+        }
+
+        private IEnumerator LogValueAfterDelay(float value)
+        {
+            yield return new WaitForSeconds(delayTime);
+            Debug.Log($"3D Slider value (standstill): {value:F3}");
         }
 
         void OnDrawGizmosSelected()
