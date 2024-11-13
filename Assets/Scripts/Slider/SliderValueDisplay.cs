@@ -9,6 +9,7 @@ public class SliderValueDisplay : MonoBehaviour
     [SerializeField] private Slider slider;
     [SerializeField] private TextMeshProUGUI valueText;
     [SerializeField] private string valueFormat = "Value: {0:F3}"; // F3 for 3 decimal places
+    [SerializeField] private string sliderName = "Slider";
 
     private Coroutine updateDelayCoroutine;
     private float lastLoggedValue = 0f;
