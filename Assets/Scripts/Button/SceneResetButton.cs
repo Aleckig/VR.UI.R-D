@@ -23,7 +23,16 @@ public class SceneResetButton : MonoBehaviour
     {
         Debug.Log("Reset button pressed - Reloading scene...");
         // Reload the current scene
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        //SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        //Load second scene
+        if (SceneManager.GetActiveScene().name == "DemoAlexander")
+        {
+            SceneManager.LoadScene("DemoAlexander2", LoadSceneMode.Single);
+        }
+        else
+        {
+            SceneManager.LoadScene("DemoAlexander", LoadSceneMode.Single);
+        }
     }
 
     private void OnEnable()
